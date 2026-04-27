@@ -35,7 +35,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: `EquipaTech <${Deno.env.get('FROM_EMAIL')}>`,
+        from: `Departamento de TI - Adriano e Couto<${Deno.env.get('FROM_EMAIL')}>`,
         to: [buyerEmail, "jose@adrianoecoutoadv.com"], // Lista de destinatários
         reply_to: form.requester_email,
         subject: `[SOLICITAÇÃO DE EQUIPAMENTOS] ${form.requester_name} - ${form.department}`,
