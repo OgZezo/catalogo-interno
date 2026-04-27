@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { X, Trash2, Send, Loader2, CheckCircle2 } from 'lucide-react';
 import { useState } from 'react';
 import { useCart } from '../lib/cartContext';
-import { sendRequestEmail } from '../lib/email';
+import { sendSolicitationEmail } from '../lib/email';
 import type { RequestForm } from '../types';
 
 interface Props {
@@ -10,7 +10,7 @@ interface Props {
   onClose: () => void;
 }
 
-const BUYER_EMAIL = import.meta.env.VITE_BUYER_EMAIL ?? 'compras@empresa.com';
+const BUYER_EMAIL = import.meta.env.VITE_BUYER_EMAIL ?? 'messias.bandeira65@gmail.com';
 
 export default function CartDrawer({ open, onClose }: Props) {
   const { items, remove, update, clear, total } = useCart();
@@ -18,34 +18,51 @@ export default function CartDrawer({ open, onClose }: Props) {
   const [form, setForm] = useState({ name: '', email: '', department: '' });
   const [error, setError] = useState('');
 
-  const handleSend = async () => {
-    if (!form.name || !form.email || !form.department) {
-      setError('Preencha todos os campos obrigatórios.');
-      return;
-    }
-    setError('');
-    setStep('sending');
-    try {
-      const req: RequestForm = {
-        requester_name: form.name,
-        requester_email: form.email,
-        department: form.department,
-        items,
-      };
-      await sendRequestEmail(req, BUYER_EMAIL);
-      setStep('done');
-      setTimeout(() => {
-        clear();
-        setStep('cart');
-        setForm({ name: '', email: '', department: '' });
-        onClose();
-      }, 2500);
+const handleSend = async () => {
+  // 1. Validação de segurança (Fast Fail)
+  if (!form.name || !form.email || !form.department) {
+    setError('Por favor, preencha todos os campos obrigatórios.');
+    return;
+  }
+
+  setError('');
+  setStep('sending');
+
+  try {
+    // 2. Montagem do Payload seguindo estritamente a interface RequestForm
+    const req: RequestForm = {
+      requester_name: form.name.trim(),
+      requester_email: form.email.trim().toLowerCase(),
+      department: form.department,
+      items: items.map(item => ({
+        product: item.product,
+        quantity: item.quantity,
+        justification: item.justification || ''
+      }))
+    };
+
+    // 3. Chamada da lib que agora usa o supabase.functions.invoke
+    await sendSolicitationEmail(req, BUYER_EMAIL);
+
+    // 4. Feedback visual de sucesso
+    setStep('done');
+
+    // 5. Cleanup com Delay para o usuário ler a mensagem de sucesso
+    setTimeout(() => {
+      clear(); // Limpa o carrinho no Context
+      setForm({ name: '', email: '', department: '' });
+      setStep('cart');
+      onClose();
+    }, 3000);
+
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setError('Erro ao enviar: ' + msg);
+      // 6. Tratamento de erro detalhado
+      const msg = e instanceof Error ? e.message : 'Erro inesperado no servidor.';
+      console.error('Falha no checkout:', e);
+      setError('Não conseguimos processar sua solicitação: ' + msg);
       setStep('form');
     }
-  };
+};
 
   return (
     <AnimatePresence>
